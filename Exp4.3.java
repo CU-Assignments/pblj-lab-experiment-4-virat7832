@@ -1,90 +1,93 @@
-Experiment 4.3: Ticket Booking System
+class TicketBookingSystem {
+    private boolean[] seats;
 
-This program simulates a ticket booking system where multiple users (threads) try to book seats at the same time. The key challenges addressed are:
+    public TicketBookingSystem(int totalSeats) {
+        seats = new boolean[totalSeats];
+    }
 
-1) Avoiding Double Booking → Using synchronized methods to ensure no two users book the same seat.
-2) Prioritizing VIP Customers → Using thread priorities so VIP users' bookings are processed before regular users.
+    public synchronized boolean bookSeat(int seatNumber, String userName) {
+        if (seatNumber < 1 || seatNumber > seats.length) {
+            System.out.println(userName + ": Invalid seat number!");
+            return false;
+        }
+        if (!seats[seatNumber - 1]) {
+            seats[seatNumber - 1] = true;
+            System.out.println(userName + " booked seat " + seatNumber);
+            return true;
+        } else {
+            System.out.println(userName + ": Seat " + seatNumber + " is already booked!");
+            return false;
+        }
+    }
+}
 
-📌 Core Concepts Used
-️1 Synchronized Booking Method
-The method bookSeat() is marked as synchronized, ensuring that only one thread can access it at a time.
-This prevents race conditions, where two threads might try to book the same seat simultaneously.
-  
-️2 Thread Priorities for VIP Customers
-Threads representing VIP users are assigned Thread.MAX_PRIORITY so they execute first.
-Regular users have Thread.NORM_PRIORITY or Thread.MIN_PRIORITY, making them process later.
+class UserThread extends Thread {
+    private TicketBookingSystem system;
+    private int seatNumber;
+    private String userName;
 
-3 Handling Multiple Users
-Each user trying to book a seat is represented by a thread.
-Users can select a seat, and if it’s already booked, they receive an error message.
+    public UserThread(TicketBookingSystem system, int seatNumber, String userName, int priority) {
+        this.system = system;
+        this.seatNumber = seatNumber;
+        this.userName = userName;
+        setPriority(priority);
+    }
 
+    @Override
+    public void run() {
+        system.bookSeat(seatNumber, userName);
+    }
+}
 
-Step-by-Step Execution
-1 Initialize the TicketBookingSystem → Allows booking of N seats.
-2 Create Multiple Booking Threads → Each user (VIP or Regular) is assigned a thread.
-3 Start All Threads → Threads compete for booking, with VIPs processed first.
-4 Ensure No Double Booking → synchronized method prevents duplicate seat allocation.
-5 Threads Finish Execution & Display Booking Status.
+public class TicketBookingMain {
+    public static void main(String[] args) {
+        TicketBookingSystem system = new TicketBookingSystem(5);
 
+        System.out.println("\nTest Case 1: No Seats Available Initially");
+        System.out.println("No bookings yet.");
 
-🔹 Why Use Synchronization?
-Without synchronized, two threads might book the same seat simultaneously, causing double booking issues. Using synchronized, only one thread at a time can modify the seat booking data.
+        System.out.println("\nTest Case 2: Successful Booking");
+        new UserThread(system, 1, "Anish (VIP)", Thread.MAX_PRIORITY).start();
+        new UserThread(system, 2, "Bobby (Regular)", Thread.NORM_PRIORITY).start();
+        new UserThread(system, 3, "Charlie (VIP)", Thread.MAX_PRIORITY).start();
 
-🔹 Why Use Thread Priorities?
-Setting higher priority for VIP users ensures their bookings are processed first, simulating real-world priority-based bookings.
+        try { Thread.sleep(500); } catch (InterruptedException e) {}
 
-Test Cases
+        System.out.println("\nTest Case 3: Thread Priorities (VIP First)");
+        new UserThread(system, 4, "Bobby (Regular)", Thread.MIN_PRIORITY).start();
+        new UserThread(system, 4, "Anish (VIP)", Thread.MAX_PRIORITY).start();
 
-Test Case 1: No Seats Available Initially
-Input:
-System starts with 5 seats.
-No users attempt to book.
-Expected Output:
-No bookings yet.
+        try { Thread.sleep(500); } catch (InterruptedException e) {}
 
-Test Case 2: Successful Booking
-Input:
-Anish (VIP) books Seat 1.
-Bobby (Regular) books Seat 2.
-Charlie (VIP) books Seat 3.
-Expected Output:
-Anish (VIP) booked seat 1
-Bobby (Regular) booked seat 2
-Charlie (VIP) booked seat 3
+        System.out.println("\nTest Case 4: Preventing Double Booking");
+        new UserThread(system, 1, "Anish (VIP)", Thread.MAX_PRIORITY).start();
+        new UserThread(system, 1, "Bobby (Regular)", Thread.NORM_PRIORITY).start();
 
-Test Case 3: Thread Priorities (VIP First)
-Input:
-Bobby (Regular) books Seat 4 (low priority).
-Anish (VIP) books Seat 4 (high priority).
-Expected Output:
-Anish (VIP) booked seat 4
-Bobby (Regular): Seat 4 is already booked!
+        try { Thread.sleep(500); } catch (InterruptedException e) {}
 
-Test Case 4: Preventing Double Booking
-Input:
-Anish (VIP) books Seat 1.
-Bobby (Regular) tries to book Seat 1 again.
-Expected Output:
-Anish (VIP) booked seat 1
-Bobby (Regular): Seat 1 is already booked!
+        System.out.println("\nTest Case 5: Booking After All Seats Are Taken");
+        new UserThread(system, 3, "Derek (Regular)", Thread.NORM_PRIORITY).start();
 
-Test Case 5: Booking After All Seats Are Taken
-Input:
-All 5 seats are booked.
-A new user (Regular) tries to book Seat 3.
-Expected Output:
-Error: Seat 3 is already booked!
+        try { Thread.sleep(500); } catch (InterruptedException e) {}
 
-Test Case 6: Invalid Seat Selection
-Input:
-User tries to book Seat 0 (out of range).
-User tries to book Seat 6 (beyond available seats).
-Expected Output:
-Invalid seat number!
+        System.out.println("\nTest Case 6: Invalid Seat Selection");
+        new UserThread(system, 0, "Ethan (Regular)", Thread.NORM_PRIORITY).start();
+        new UserThread(system, 6, "Frank (Regular)", Thread.NORM_PRIORITY).start();
 
-Test Case 7: Simultaneous Bookings (Concurrency Test)
-Input:
-10 users try booking at the same time for 5 seats.
-Expected Output:
-5 users successfully book seats.
-5 users receive error messages for already booked seats.
+        try { Thread.sleep(500); } catch (InterruptedException e) {}
+
+        System.out.println("\nTest Case 7: Simultaneous Bookings (Concurrency Test)");
+        Thread[] users = new Thread[10];
+        for (int i = 0; i < 10; i++) {
+            int seat = (i % 5) + 1;
+            users[i] = new UserThread(system, seat, "User " + (i + 1), (i % 2 == 0) ? Thread.MAX_PRIORITY : Thread.MIN_PRIORITY);
+            users[i].start();
+        }
+
+        for (Thread user : users) {
+            try {
+                user.join();
+            } catch (InterruptedException e) {}
+        }
+    }
+}
